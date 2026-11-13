@@ -14,6 +14,7 @@ export function Innstillinger({ onLukk, epost }: { onLukk: () => void; epost: st
   const [nyInntekt, setNyInntekt] = useState(false)
   const [fast, setFast] = useState<FastUtgift | 'ny' | null>(null)
   const [bedriftInfo, setBedriftInfo] = useState(false)
+  const [bytt, setBytt] = useState(false)
   const bedriftRes = maanedsResultat(new Date(), data.mobiler, data.bedrift_utgifter, data.faste_utgifter)
   const inntekter = [...data.inntekter].sort((a, b) => Number(b.er_fast) - Number(a.er_fast) || b.dato.localeCompare(a.dato))
   const kategorier = [...data.kategorier].sort((a, b) => a.rekkefolge - b.rekkefolge)
@@ -82,12 +83,14 @@ export function Innstillinger({ onLukk, epost }: { onLukk: () => void; epost: st
 
       <Seksjon tittel={<span className="middels" style={{ fontSize: 14 }}>Konto</span>}>
         <div className="listerad"><span className="vokse gra">Innlogget som</span><span className="ellipse">{epost}</span></div>
+        <button className="listerad" onClick={() => setBytt(true)}><span className="vokse fet">Bytt passord</span></button>
         <button className="listerad" onClick={async () => { if (bekreft('Logge ut?')) await supabase.auth.signOut() }}><LogOut size={20} className="rod" /><span className="rod fet">Logg ut</span></button>
       </Seksjon>
 
       {nyInntekt && <NyInntekt onLukk={() => setNyInntekt(false)} />}
       {fast && <FastUtgiftArk utgift={fast === 'ny' ? null : fast} onLukk={() => setFast(null)} />}
       {bedriftInfo && <Firmainfo onLukk={() => setBedriftInfo(false)} />}
+      {bytt && <ByttPassord onLukk={() => setBytt(false)} />}
     </Ark>
   )
 }
@@ -196,6 +199,26 @@ function Firmainfo({ onLukk }: { onLukk: () => void }) {
         <Tekstfelt etikett="Postnr./sted" verdi={f.postnr_sted} onEndre={sett('postnr_sted')} />
         <Tekstfelt etikett="Telefon" verdi={f.telefon} onEndre={sett('telefon')} />
         <Tekstfelt etikett="E-post" verdi={f.epost ?? ''} onEndre={v => setF({ ...f, epost: v || null })} />
+      </Skjema>
+    </Ark>
+  )
+}
+
+function ByttPassord({ onLukk }: { onLukk: () => void }) {
+  const data = useData()
+  const [nytt, setNytt] = useState('')
+  const [igjen, setIgjen] = useState('')
+  const ok = nytt.length >= 6 && nytt === igjen
+  return (
+    <Ark tittel="Bytt passord" onLukk={onLukk} kanLagre={ok}
+      onLagre={async () => {
+        const { error } = await supabase.auth.updateUser({ password: nytt })
+        if (error) data.visFeil('Kunne ikke bytte passord: ' + error.message)
+        else { window.alert('Passordet er byttet.'); onLukk() }
+      }}>
+      <Skjema fotnote={igjen && nytt !== igjen ? 'Passordene er ikke like.' : 'Minst 6 tegn.'}>
+        <label className="felt"><input type="password" autoComplete="new-password" placeholder="Nytt passord" value={nytt} onChange={e => setNytt(e.target.value)} /></label>
+        <label className="felt"><input type="password" autoComplete="new-password" placeholder="Gjenta passordet" value={igjen} onChange={e => setIgjen(e.target.value)} /></label>
       </Skjema>
     </Ark>
   )
