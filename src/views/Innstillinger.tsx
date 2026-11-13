@@ -16,7 +16,7 @@ export function Innstillinger({ onLukk, epost }: { onLukk: () => void; epost: st
   const [bedriftInfo, setBedriftInfo] = useState(false)
   const [bytt, setBytt] = useState(false)
   const bedriftRes = maanedsResultat(new Date(), data.mobiler, data.bedrift_utgifter, data.faste_utgifter)
-  const inntekter = [...data.inntekter].sort((a, b) => Number(b.er_fast) - Number(a.er_fast) || b.dato.localeCompare(a.dato))
+  const inntekter = data.inntekter.filter(i => i.er_fast || sammeMaaned(d(i.dato), new Date())).sort((a, b) => Number(b.er_fast) - Number(a.er_fast) || b.dato.localeCompare(a.dato))
   const kategorier = [...data.kategorier].sort((a, b) => a.rekkefolge - b.rekkefolge)
 
   const flytt = async (k: Kategori, retning: -1 | 1) => {
@@ -38,7 +38,7 @@ export function Innstillinger({ onLukk, epost }: { onLukk: () => void; epost: st
         </div>
         {inntekter.map(i => (
           <SveipRad key={i.id} onSlett={() => data.slett('inntekter', i.id)}>
-            <div className="listerad" style={{ opacity: !i.er_fast && !sammeMaaned(d(i.dato), new Date()) ? 0.5 : 1 }}>
+            <div className="listerad">
               <div className="vokse kolonne" style={{ gap: 2 }}>
                 <span className="fet">{i.tittel}</span>
                 <span className="liten">{i.er_fast ? 'Fast hver måned' : `Engangsinntekt · ${d(i.dato).toLocaleDateString('nb-NO')}`}</span>

@@ -74,7 +74,8 @@ export function DagligForbruk({ utgifter, maaned: mnd }: { utgifter: Utgift[]; m
   const iDag = sammeMaaned(new Date(), mnd) ? new Date().getDate() : null
   const totalt = sum(dager, x => x)
   const snitt = totalt / (iDag ?? antall)
-  const maks = Math.max(...dager, snitt, 1)
+  const { topp: maks, steg } = penAkse(Math.max(...dager, snitt, 1))
+  const yVerdier = Array.from({ length: Math.round(maks / steg) + 1 }, (_, i) => i * steg)
   const visAkse = new Set([1, 5, 10, 15, 20, 25, antall])
   const valgteKjop = valgt ? utgifter.filter(u => d(u.dato).getDate() === valgt) : []
 
@@ -91,7 +92,11 @@ export function DagligForbruk({ utgifter, maaned: mnd }: { utgifter: Utgift[]; m
         </div>
       </div>
       <div>
+        <div className="rad" style={{ alignItems: 'stretch', gap: 6 }}>
+        <div className="y-akse">{yVerdier.map(v => <span key={v} style={{ bottom: `${(v / maks) * 100}%` }}>{kortKr(v)}</span>)}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
         <div className="stolper">
+          {yVerdier.slice(1).map(v => <div key={v} className="gridlinje" style={{ bottom: `${(v / maks) * 100}%` }} />)}
           <div className="snittlinje" style={{ bottom: `${(snitt / maks) * 100}%` }} />
           {dager.map((v, i) => {
             const dag = i + 1
@@ -104,6 +109,8 @@ export function DagligForbruk({ utgifter, maaned: mnd }: { utgifter: Utgift[]; m
           })}
         </div>
         <div className="akse" style={{ marginTop: 4 }}>{dager.map((_, i) => <span key={i}>{visAkse.has(i + 1) ? i + 1 : ''}</span>)}</div>
+        </div>
+        </div>
       </div>
       {valgt ? (
         valgteKjop.length === 0 ? <span className="liten">Ingen utgifter denne dagen</span> : (
@@ -217,4 +224,18 @@ function RedigerUtgift({ utgift, onLukk }: { utgift: Utgift; onLukk: () => void 
       <button className="knapp fare" onClick={async () => { if (bekreft('Slette denne utgiften?')) { await data.slett('utgifter', utgift.id); onLukk() } }}>Slett utgift</button>
     </Ark>
   )
+}
+
+/** Runde verdier på y-aksen (f.eks. 0, 500, 1 000, 1 500) som skalerer etter største dag */
+function penAkse(maks: number) {
+  const raa = maks / 4
+  const mag = Math.pow(10, Math.floor(Math.log10(raa)))
+  const n = raa / mag
+  const steg = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag
+  return { steg, topp: Math.ceil(maks / steg) * steg }
+}
+/** 1 500 → «1,5k», 800 → «800» */
+function kortKr(v: number) {
+  if (v < 1000) return String(Math.round(v))
+  return (Math.round(v / 100) / 10).toString().replace('.', ',') + 'k'
 }

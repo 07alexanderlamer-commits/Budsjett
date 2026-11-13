@@ -81,7 +81,7 @@ button.listerad:active, .listerad.trykk:active { background: #16224a; }
 /* Sveip for å slette */
 .sveip { position: relative; overflow: hidden; }
 .sveip .slett-bak { position: absolute; inset: 0 0 0 auto; width: 90px; background: var(--rod); display: grid; place-items: center; font-weight: 700; font-size: 15px; }
-.sveip .forside { position: relative; transition: transform 0.2s ease; touch-action: pan-y; }
+.sveip .forside { position: relative; background: var(--kort); transition: transform 0.2s ease; touch-action: pan-y; }
 
 /* ---------- Budsjettlinjer ---------- */
 .linje { background: var(--kort); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
@@ -150,6 +150,9 @@ select.velg, input.velg { background: var(--bg); color: var(--tekst); border: 1p
 .stolper { display: flex; align-items: flex-end; gap: 2px; height: 160px; position: relative; }
 .stolper > button { flex: 1; display: flex; align-items: flex-end; height: 100%; }
 .stolper > button > div { width: 100%; border-radius: 3px 3px 0 0; min-height: 0; }
+.y-akse { position: relative; width: 34px; height: 160px; flex-shrink: 0; font-size: 10px; color: var(--gra); }
+.y-akse > span { position: absolute; right: 0; transform: translateY(50%); font-variant-numeric: tabular-nums; }
+.gridlinje { position: absolute; left: 0; right: 0; border-top: 1px solid rgba(255, 255, 255, 0.07); pointer-events: none; }
 .snittlinje { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(141, 153, 174, 0.8); pointer-events: none; }
 .akse { display: flex; gap: 2px; font-size: 10px; color: var(--gra); }
 .akse > span { flex: 1; text-align: center; }
