@@ -48,6 +48,9 @@ export function BedriftVisning() {
 
   const p = periode ?? { start: forsteBedriftDato(data.mobiler, data.bedrift_utgifter), slutt: new Date() }
   const resultat = bedriftResultat(p.start, p.slutt, data.mobiler, data.bedrift_utgifter, data.faste_utgifter)
+  // Utgående MVA (bruktmoms): 20 % av avansen på telefoner solgt i perioden – samme som i eksporten
+  const mva = sum(data.mobiler.filter(m => m.salgspris != null && m.salgs_dato && d(m.salgs_dato) >= p.start && d(m.salgs_dato) <= p.slutt),
+    m => Math.max(0, (m.salgspris ?? 0) - m.kjopspris) * 0.2)
 
   const eksporter = () => delFil(`MVA_Termin_Eksport_${inputDato(new Date())}.csv`,
     bruktprotokoll({ periode, mobiler: data.mobiler, utstyr: data.bedrift_utgifter, turer: data.kjoreturer, faste: data.faste_utgifter }))
@@ -93,7 +96,7 @@ export function BedriftVisning() {
               )}
               <div className="rad mellom" style={{ alignItems: 'flex-start' }}>
                 <div className="kolonne"><span className="middels">Tilgjengelig kapital</span><span className="tall bla" style={{ fontSize: 20, fontWeight: 700 }}>{kr(kapital(data.innstillinger.bedrift_kapital, data.mobiler))} kr</span><span className="liten">Frigjøres når utbetalt</span></div>
-                <div className="kolonne hoyre"><span className="middels">Resultat (periode)</span><span className={'tall ' + (resultat >= 0 ? 'gronn' : 'rod')} style={{ fontSize: 20, fontWeight: 700 }}>{kr(resultat)} kr</span></div>
+                <div className="kolonne hoyre"><span className="middels">Resultat (periode)</span><span className={'tall ' + (resultat >= 0 ? 'gronn' : 'rod')} style={{ fontSize: 20, fontWeight: 700 }}>{kr(resultat)} kr</span><span className="liten">MVA å betale: <b style={{ color: 'var(--oransje)' }}>{kr(Math.round(mva))} kr</b></span></div>
               </div>
             </div>
 
