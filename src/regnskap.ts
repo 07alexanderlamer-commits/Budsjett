@@ -49,7 +49,7 @@ export function kapital(startKapital: number, mobiler: Mobil[]) {
   return startKapital - sum(mobiler.filter(m => !erUtbetalt(m)), m => m.kjopspris)
 }
 
-export const erUnderveis = (m: Mobil) => m.salgspris != null && (m.salgs_status === 'Må sendes' || m.salgs_status === 'Sendt')
+export const erUnderveis = (m: Mobil) => m.salgspris != null && (m.kjops_status != null || m.salgs_status === 'Må sendes' || m.salgs_status === 'Sendt')
 export const nesteStatus = (s: Mobil['salgs_status']): NonNullable<Mobil['salgs_status']> =>
   s === 'Må sendes' ? 'Sendt' : s === 'Sendt' ? 'Utbetalt' : 'Må sendes'
 

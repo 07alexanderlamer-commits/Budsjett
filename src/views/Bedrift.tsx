@@ -11,7 +11,9 @@ import { Ark, BildeVelger, Bryter, Skjema, SveipRad, Seksjon, Tekstfelt, Velger,
 import { Skanner } from '../skanner'
 import type { Mobil, SalgsStatus } from '../types'
 
-const STATUS: Record<SalgsStatus, { farge: string; Ikon: typeof Package }> = {
+type Merkestatus = SalgsStatus | 'Sendes til deg'
+const STATUS: Record<Merkestatus, { farge: string; Ikon: typeof Package }> = {
+  'Sendes til deg': { farge: '#BF5AF2', Ikon: Truck },
   'Må sendes': { farge: '#FF9F0A', Ikon: Package },
   'Sendt': { farge: '#0A84FF', Ikon: Send },
   'Utbetalt': { farge: '#34C759', Ikon: CheckCircle2 },
@@ -114,9 +116,7 @@ export function BedriftVisning() {
                     <span className="rad" style={{ gap: 6 }}><span className="gra fet" style={{ fontSize: 14 }}>#{1000 + m.flipp_id}</span><span style={{ fontWeight: 500 }}>{m.navn}</span></span>
                     {m.imei && <span className="liten">IMEI: {m.imei}</span>}
                     {m.selger_navn && <span className="liten">Fra: {m.selger_navn}</span>}
-                    {m.kjops_status && <div style={{ marginTop: 4 }}><span role="button" className="merke" style={{ color: '#BF5AF2', borderColor: '#BF5AF280', background: '#BF5AF226' }}
-                      onClick={e => { e.stopPropagation(); if (bekreft(`Har du mottatt #${1000 + m.flipp_id} ${m.navn}?`)) data.oppdater('mobiler', m.id, { kjops_status: null }) }}>
-                      <Truck size={11} strokeWidth={3} />Sendes til deg</span></div>}
+                    {m.kjops_status && <div style={{ marginTop: 4 }}><StatusMerke status="Sendes til deg" onTrykk={() => data.oppdater('mobiler', m.id, { kjops_status: null })} /></div>}
                   </div>
                   <span className="fet rod tall" style={{ whiteSpace: 'nowrap' }}>-{kr(m.kjopspris)} kr</span>
                 </button>
@@ -130,7 +130,9 @@ export function BedriftVisning() {
             {(liste as Mobil[]).map(m => (
               <SveipRad key={m.id} onSlett={() => bekreft(`Slette #${1000 + m.flipp_id} ${m.navn}?`) && data.slett('mobiler', m.id)}>
                 <SolgtRad mobil={m} onTrykk={() => setRedigerer(m)} onKvittering={() => kvittering(m)}
-                  onStatus={() => data.oppdater('mobiler', m.id, { salgs_status: nesteStatus(m.salgs_status) })} />
+                  onStatus={() => data.oppdater('mobiler', m.id, m.kjops_status
+                    ? { kjops_status: null, salgs_status: m.salgs_status ?? 'Må sendes' }   // Sendes til deg → Må sendes
+                    : { salgs_status: nesteStatus(m.salgs_status) })} />
               </SveipRad>
             ))}
           </Seksjon>
@@ -170,7 +172,7 @@ function Miniatyr({ bilde }: { bilde: string | null }) {
   return bilde ? <img className="miniatyr" src={bilde} alt="" /> : <div className="miniatyr"><Smartphone size={20} /></div>
 }
 
-export function StatusMerke({ status, onTrykk }: { status: SalgsStatus; onTrykk?: () => void }) {
+export function StatusMerke({ status, onTrykk }: { status: Merkestatus; onTrykk?: () => void }) {
   const { farge, Ikon } = STATUS[status]
   return (
     <span role={onTrykk ? 'button' : undefined} className="merke" style={{ color: farge, borderColor: farge + '80', background: farge + '26' }}
@@ -197,7 +199,7 @@ function SolgtRad({ mobil: m, onTrykk, onKvittering, onStatus }: { mobil: Mobil;
           {m.kjoper_navn && <><span>•</span><span className="ellipse vokse">Kjøper: {m.kjoper_navn}</span></>}
           <span style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>Solgt: {kr(m.salgspris ?? 0)}</span>
         </div>
-        {m.salgs_status && <div><StatusMerke status={m.salgs_status} onTrykk={onStatus} /></div>}
+        {(m.kjops_status ?? m.salgs_status) && <div><StatusMerke status={(m.kjops_status ?? m.salgs_status)!} onTrykk={onStatus} /></div>}
       </div>
     </div>
   )
@@ -227,7 +229,7 @@ function KjopMobil({ onLukk }: { onLukk: () => void }) {
   const [imei, setImei] = useState('')
   const [pris, setPris] = useState('')
   const [dato, setDato] = useState(inputDato(new Date()))
-  const [sendes, setSendes] = useState(false)
+  const [sendes, setSendes] = useState(true)
   const tall = lesTall(pris)
   return (
     <Ark tittel="Kjøp" onLukk={onLukk} kanLagre={!!navn && tall != null}
