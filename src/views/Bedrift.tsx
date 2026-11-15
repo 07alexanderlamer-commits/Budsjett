@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Car, CheckCircle2, DollarSign, FileText, Package, Send, Share, ShoppingCart, Smartphone, Wrench, ScanLine } from 'lucide-react'
+import { Truck, Car, CheckCircle2, DollarSign, FileText, Package, Send, Share, ShoppingCart, Smartphone, Wrench, ScanLine } from 'lucide-react'
 import { useData } from '../data'
 import {
   bedriftResultat, d, erUnderveis, forsteBedriftDato, gjeldendeTermin, kapital, kmDenneMaaned, KM_GRENSE_MND, KM_SATS,
@@ -7,7 +7,7 @@ import {
 } from '../regnskap'
 import { bruktprotokoll } from '../eksport'
 import { datoKort, fraInputDato, inputDato, kr, lesTall } from '../format'
-import { Ark, BildeVelger, Skjema, SveipRad, Seksjon, Tekstfelt, Velger, bekreft, delFil } from '../ui'
+import { Ark, BildeVelger, Bryter, Skjema, SveipRad, Seksjon, Tekstfelt, Velger, bekreft, delFil } from '../ui'
 import { Skanner } from '../skanner'
 import type { Mobil, SalgsStatus } from '../types'
 
@@ -90,7 +90,7 @@ export function BedriftVisning() {
                 </div>
               )}
               <div className="rad mellom">
-                <div className="kolonne"><span className="middels">Tilgjengelig kapital</span><span className="tall bla" style={{ fontSize: 20, fontWeight: 700 }}>{kr(kapital(data.innstillinger.bedrift_kapital, data.mobiler))} kr</span></div>
+                <div className="kolonne"><span className="middels">Tilgjengelig kapital</span><span className="tall bla" style={{ fontSize: 20, fontWeight: 700 }}>{kr(kapital(data.innstillinger.bedrift_kapital, data.mobiler))} kr</span><span className="liten">Frigjøres når utbetalt</span></div>
                 <div className="kolonne hoyre"><span className="middels">Resultat (periode)</span><span className={'tall ' + (resultat >= 0 ? 'gronn' : 'rod')} style={{ fontSize: 20, fontWeight: 700 }}>{kr(resultat)} kr</span></div>
               </div>
             </div>
@@ -114,6 +114,9 @@ export function BedriftVisning() {
                     <span className="rad" style={{ gap: 6 }}><span className="gra fet" style={{ fontSize: 14 }}>#{1000 + m.flipp_id}</span><span style={{ fontWeight: 500 }}>{m.navn}</span></span>
                     {m.imei && <span className="liten">IMEI: {m.imei}</span>}
                     {m.selger_navn && <span className="liten">Fra: {m.selger_navn}</span>}
+                    {m.kjops_status && <div style={{ marginTop: 4 }}><span role="button" className="merke" style={{ color: '#BF5AF2', borderColor: '#BF5AF280', background: '#BF5AF226' }}
+                      onClick={e => { e.stopPropagation(); if (bekreft(`Har du mottatt #${1000 + m.flipp_id} ${m.navn}?`)) data.oppdater('mobiler', m.id, { kjops_status: null }) }}>
+                      <Truck size={11} strokeWidth={3} />Sendes til deg</span></div>}
                   </div>
                   <span className="fet rod tall" style={{ whiteSpace: 'nowrap' }}>-{kr(m.kjopspris)} kr</span>
                 </button>
@@ -224,12 +227,13 @@ function KjopMobil({ onLukk }: { onLukk: () => void }) {
   const [imei, setImei] = useState('')
   const [pris, setPris] = useState('')
   const [dato, setDato] = useState(inputDato(new Date()))
+  const [sendes, setSendes] = useState(false)
   const tall = lesTall(pris)
   return (
     <Ark tittel="Kjøp" onLukk={onLukk} kanLagre={!!navn && tall != null}
       onLagre={async () => {
         const kjopsDato = dato === inputDato(new Date()) ? new Date() : fraInputDato(dato)
-        const r = await data.leggTil('mobiler', { flipp_id: nesteId, navn, kjopspris: tall!, imei: imei || null, selger_navn: selger || null, bilde, kjops_dato: kjopsDato.toISOString() })
+        const r = await data.leggTil('mobiler', { flipp_id: nesteId, navn, kjopspris: tall!, imei: imei || null, selger_navn: selger || null, bilde, kjops_dato: kjopsDato.toISOString(), kjops_status: sendes ? 'Sendes til deg' : null })
         if (r) onLukk()
       }}>
       <Skjema tittel="Bilde (valgfritt)"><BildeVelger bilde={bilde} onEndre={setBilde} tekst="Velg bilde fra kamerarull" /></Skjema>
@@ -239,6 +243,7 @@ function KjopMobil({ onLukk }: { onLukk: () => void }) {
         <ImeiFelt verdi={imei} onEndre={setImei} />
         <Tekstfelt verdi={pris} onEndre={setPris} plassholder="Hva betalte du?" tall />
         <Tekstfelt etikett="Kjøpt" type="date" verdi={dato} onEndre={setDato} />
+        <Bryter etikett="Sendes til deg" paa={sendes} onEndre={setSendes} />
       </Skjema>
     </Ark>
   )
@@ -285,12 +290,14 @@ function RedigerMobil({ mobil, onLukk }: { mobil: Mobil; onLukk: () => void }) {
   const [salgspris, setSalgspris] = useState(mobil.salgspris != null ? String(mobil.salgspris) : '')
   const [salgsDato, setSalgsDato] = useState(inputDato(mobil.salgs_dato ? d(mobil.salgs_dato) : new Date()))
   const [status, setStatus] = useState<SalgsStatus | ''>(mobil.salgs_status ?? '')
+  const [sendes, setSendes] = useState(mobil.kjops_status != null)
   const kjop = lesTall(kjopspris), salg = lesTall(salgspris)
 
   const lagre = async () => {
     const endring: Partial<Mobil> = {
       bilde, navn, selger_navn: selger || null, imei: imei || null, kjopspris: kjop!,
       kjops_dato: kjopsDato === inputDato(d(mobil.kjops_dato)) ? mobil.kjops_dato : fraInputDato(kjopsDato).toISOString(),
+      kjops_status: sendes ? 'Sendes til deg' : null,
     }
     if (salg != null) {
       Object.assign(endring, {
@@ -312,6 +319,7 @@ function RedigerMobil({ mobil, onLukk }: { mobil: Mobil; onLukk: () => void }) {
         <ImeiFelt verdi={imei} onEndre={setImei} />
         <Tekstfelt etikett="Kjøpspris" verdi={kjopspris} onEndre={setKjopspris} tall />
         <Tekstfelt etikett="Kjøpt" type="date" verdi={kjopsDato} onEndre={setKjopsDato} />
+        <Bryter etikett="Sendes til deg (ikke mottatt)" paa={sendes} onEndre={setSendes} />
       </Skjema>
       <Skjema tittel="Salg" fotnote="La salgspris stå tom hvis telefonen ikke er solgt.">
         <Tekstfelt etikett="Kjøper" verdi={kjoper} onEndre={setKjoper} />

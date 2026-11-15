@@ -53,6 +53,7 @@ create table if not exists mobiler (
   kjoper_navn text,
   selger_navn text,
   salgs_status text,
+  kjops_status text,
   bilde text,
   unique (user_id, flipp_id)
 );

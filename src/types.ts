@@ -7,6 +7,7 @@ export type Mobil = {
   id: string; flipp_id: number; navn: string; kjopspris: number; salgspris: number | null
   kjops_dato: string; salgs_dato: string | null; profitt: number | null; imei: string | null
   kjoper_navn: string | null; selger_navn: string | null; salgs_status: SalgsStatus | null; bilde: string | null
+  kjops_status: 'Sendes til deg' | null
 }
 export type BedriftUtgift = { id: string; navn: string; pris: number; dato: string; bilde: string | null }
 export type Kjoretur = { id: string; dato: string; start_sted: string; stopp_sted: string; formal: string; km: number; imei_ref: string | null }

@@ -42,8 +42,11 @@ export function forsteBedriftDato(mobiler: Mobil[], utstyr: BedriftUtgift[]) {
   return datoer.length ? new Date(Math.min(...datoer)) : new Date()
 }
 
+/** Pengene i en telefon er bundet til salget er utbetalt (eller er et gammelt salg uten status). */
+export const erUtbetalt = (m: Mobil) => m.salgspris != null && (m.salgs_status == null || m.salgs_status === 'Utbetalt')
+
 export function kapital(startKapital: number, mobiler: Mobil[]) {
-  return startKapital - sum(mobiler.filter(m => m.salgspris == null), m => m.kjopspris)
+  return startKapital - sum(mobiler.filter(m => !erUtbetalt(m)), m => m.kjopspris)
 }
 
 export const erUnderveis = (m: Mobil) => m.salgspris != null && (m.salgs_status === 'Må sendes' || m.salgs_status === 'Sendt')
