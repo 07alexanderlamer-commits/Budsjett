@@ -89,7 +89,7 @@ export function BedriftVisning() {
                   <input className="velg" type="date" value={egenSlutt} onChange={e => setEgenSlutt(e.target.value)} style={{ flex: 1 }} />
                 </div>
               )}
-              <div className="rad mellom">
+              <div className="rad mellom" style={{ alignItems: 'flex-start' }}>
                 <div className="kolonne"><span className="middels">Tilgjengelig kapital</span><span className="tall bla" style={{ fontSize: 20, fontWeight: 700 }}>{kr(kapital(data.innstillinger.bedrift_kapital, data.mobiler))} kr</span><span className="liten">Frigjøres når utbetalt</span></div>
                 <div className="kolonne hoyre"><span className="middels">Resultat (periode)</span><span className={'tall ' + (resultat >= 0 ? 'gronn' : 'rod')} style={{ fontSize: 20, fontWeight: 700 }}>{kr(resultat)} kr</span></div>
               </div>
