@@ -42,7 +42,7 @@ export function BedriftVisning() {
   const s = sok.trim().toLowerCase()
   const treff = (...felt: (string | null)[]) => felt.some(f => f?.toLowerCase().includes(s))
   const filtrerte = mobiler.filter(m => (!periode || iPeriode(m.kjops_dato) || iPeriode(m.salgs_dato))
-    && (!s || treff(m.navn, m.imei, m.kjoper_navn, m.selger_navn, String(1000 + m.flipp_id))))
+    && (!s || treff(m.navn, m.imei, m.kjoper_navn, m.selger_navn, m.teleoutlet_ordre, String(1000 + m.flipp_id))))
   const filtrertUtstyr = utstyr.filter(u => (!periode || iPeriode(u.dato)) && (!s || treff(u.navn)))
 
   const lager = filtrerte.filter(m => m.salgspris == null)
@@ -210,6 +210,7 @@ function SolgtRad({ mobil: m, onTrykk, onKvittering, onStatus }: { mobil: Mobil;
           {m.kjoper_navn && <><span>•</span><span className="ellipse vokse">Kjøper: {m.kjoper_navn}</span></>}
           <span style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>Solgt: {kr(m.salgspris ?? 0)}</span>
         </div>
+        {m.teleoutlet_ordre && <span className="liten">Teleoutlet ordrenr.: <b style={{ color: 'var(--tekst)' }}>{m.teleoutlet_ordre}</b></span>}
         {(m.kjops_status ?? m.salgs_status) && <div><StatusMerke status={(m.kjops_status ?? m.salgs_status)!} onTrykk={onStatus} /></div>}
       </div>
     </div>
@@ -269,6 +270,7 @@ function SalgMobil({ onLukk }: { onLukk: () => void }) {
   const usolgte = [...data.mobiler].filter(m => m.salgspris == null).sort((a, b) => b.flipp_id - a.flipp_id)
   const [id, setId] = useState(usolgte[0]?.id ?? '')
   const [kjoper, setKjoper] = useState('')
+  const [teleoutlet, setTeleoutlet] = useState('')
   const [pris, setPris] = useState('')
   const [status, setStatus] = useState<SalgsStatus>('Må sendes')
   const tall = lesTall(pris)
@@ -276,13 +278,14 @@ function SalgMobil({ onLukk }: { onLukk: () => void }) {
   return (
     <Ark tittel="Salg" lagreTekst="Selg" onLukk={onLukk} kanLagre={!!mobil && tall != null}
       onLagre={async () => {
-        await data.oppdater('mobiler', mobil!.id, { salgspris: tall!, salgs_dato: new Date().toISOString(), kjoper_navn: kjoper || null, profitt: tall! - mobil!.kjopspris, salgs_status: status })
+        await data.oppdater('mobiler', mobil!.id, { salgspris: tall!, salgs_dato: new Date().toISOString(), kjoper_navn: kjoper || null, profitt: tall! - mobil!.kjopspris, salgs_status: status, teleoutlet_ordre: teleoutlet.trim() || null })
         onLukk()
       }}>
       {usolgte.length === 0 ? <div className="tom">Ingen usolgte mobiler!</div> : (
         <Skjema tittel="Salg" fotnote={mobil && tall != null ? `Fortjeneste: ${kr(tall - mobil.kjopspris)} kr` : undefined}>
           <Velger etikett="Mobil" verdi={id} valg={usolgte.map(m => ({ verdi: m.id, navn: `#${1000 + m.flipp_id} – ${m.navn}` }))} onEndre={setId} />
           <Tekstfelt verdi={kjoper} onEndre={setKjoper} plassholder="Navn på kjøper" />
+          <Tekstfelt verdi={teleoutlet} onEndre={setTeleoutlet} plassholder="Teleoutlet ordrenr. (valgfritt)" />
           <Tekstfelt verdi={pris} onEndre={setPris} plassholder="Salgspris" tall />
           <Velger etikett="Status" verdi={status} valg={statusValg} onEndre={setStatus} />
         </Skjema>
@@ -300,6 +303,7 @@ function RedigerMobil({ mobil, onLukk }: { mobil: Mobil; onLukk: () => void }) {
   const [kjopspris, setKjopspris] = useState(String(mobil.kjopspris))
   const [kjopsDato, setKjopsDato] = useState(inputDato(d(mobil.kjops_dato)))
   const [kjoper, setKjoper] = useState(mobil.kjoper_navn ?? '')
+  const [teleoutlet, setTeleoutlet] = useState(mobil.teleoutlet_ordre ?? '')
   const [salgspris, setSalgspris] = useState(mobil.salgspris != null ? String(mobil.salgspris) : '')
   const [salgsDato, setSalgsDato] = useState(inputDato(mobil.salgs_dato ? d(mobil.salgs_dato) : new Date()))
   const [status, setStatus] = useState<SalgsStatus | ''>(mobil.salgs_status ?? '')
@@ -314,11 +318,11 @@ function RedigerMobil({ mobil, onLukk }: { mobil: Mobil; onLukk: () => void }) {
     }
     if (salg != null) {
       Object.assign(endring, {
-        salgspris: salg, profitt: salg - kjop!, kjoper_navn: kjoper || null, salgs_status: status || null,
+        salgspris: salg, profitt: salg - kjop!, kjoper_navn: kjoper || null, salgs_status: status || null, teleoutlet_ordre: teleoutlet.trim() || null,
         salgs_dato: mobil.salgs_dato && salgsDato === inputDato(d(mobil.salgs_dato)) ? mobil.salgs_dato
           : salgsDato === inputDato(new Date()) ? new Date().toISOString() : fraInputDato(salgsDato).toISOString(),
       })
-    } else Object.assign(endring, { salgspris: null, salgs_dato: null, profitt: null, kjoper_navn: null, salgs_status: null })
+    } else Object.assign(endring, { salgspris: null, salgs_dato: null, profitt: null, kjoper_navn: null, salgs_status: null, teleoutlet_ordre: null })
     await data.oppdater('mobiler', mobil.id, endring)
     onLukk()
   }
@@ -336,6 +340,7 @@ function RedigerMobil({ mobil, onLukk }: { mobil: Mobil; onLukk: () => void }) {
       </Skjema>
       <Skjema tittel="Salg" fotnote="La salgspris stå tom hvis telefonen ikke er solgt.">
         <Tekstfelt etikett="Kjøper" verdi={kjoper} onEndre={setKjoper} />
+        <Tekstfelt etikett="Teleoutlet ordrenr." verdi={teleoutlet} onEndre={setTeleoutlet} plassholder="Valgfritt" />
         <Tekstfelt etikett="Salgspris" verdi={salgspris} onEndre={setSalgspris} plassholder="Usolgt" tall />
         {salgspris && <>
           <Tekstfelt etikett="Solgt" type="date" verdi={salgsDato} onEndre={setSalgsDato} />
