@@ -53,7 +53,7 @@ export function bruktprotokoll(a: { periode: { start: Date; slutt: Date } | null
   const antMnd = a.periode ? antallMaaneder(a.periode.start, a.periode.slutt) : 12
   for (const f of a.faste.filter(f => f.er_bedrift)) r.push(['Fast Utgift', `${f.tittel} (${antMnd} mnd)`, antMnd, Math.round(f.belop), Math.round(f.belop * antMnd)])
   for (const u of a.utstyr.filter(u => iPeriode(u.dato))) r.push(['Utstyr/Deler', `${u.navn} (${datoKort(d(u.dato))})`, 1, Math.round(u.pris), Math.round(u.pris)])
-  const innMva = a.utstyr.filter(u => iPeriode(u.dato)).reduce((s, u) => s + u.pris * 0.2, 0)
+  const innMva = a.utstyr.filter(u => u.med_mva !== false && iPeriode(u.dato)).reduce((s, u) => s + u.pris * 0.2, 0)
   r.push([], ['MVA-OPPSUMMERING'], ['Utgående MVA (bruktsalg)', '', '', '', Math.round(totMva)], ['Inngående MVA (utstyr, 20 % av pris inkl. mva)', '', '', '', -Math.round(innMva)],
     [totMva - innMva >= 0 ? 'MVA å betale' : 'MVA til gode', '', '', '', Math.round(Math.abs(totMva - innMva))])
   return csv(r)

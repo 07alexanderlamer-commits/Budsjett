@@ -64,7 +64,8 @@ create table if not exists bedrift_utgifter (
   navn text not null,
   pris numeric not null,
   dato timestamptz not null default now(),
-  bilde text
+  bilde text,
+  med_mva boolean not null default true
 );
 
 create table if not exists kjoreturer (

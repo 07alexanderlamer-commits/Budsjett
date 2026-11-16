@@ -9,7 +9,7 @@ import { bruktprotokoll } from '../eksport'
 import { datoKort, fraInputDato, inputDato, kr, lesTall } from '../format'
 import { Ark, BildeVelger, Bryter, Skjema, SveipRad, Seksjon, Tekstfelt, Velger, bekreft, delFil } from '../ui'
 import { Skanner } from '../skanner'
-import type { Mobil, SalgsStatus } from '../types'
+import type { BedriftUtgift, Mobil, SalgsStatus } from '../types'
 
 type Merkestatus = SalgsStatus | 'Sendes til deg'
 const STATUS: Record<Merkestatus, { farge: string; Ikon: typeof Package }> = {
@@ -21,10 +21,14 @@ const STATUS: Record<Merkestatus, { farge: string; Ikon: typeof Package }> = {
 
 export function BedriftVisning() {
   const data = useData()
-  const [termin, setTermin] = useState<TerminId>('alle')
-  const [aar, setAar] = useState(new Date().getFullYear())
-  const [egenStart, setEgenStart] = useState(inputDato(new Date(new Date().getFullYear(), new Date().getMonth() - 1, new Date().getDate())))
-  const [egenSlutt, setEgenSlutt] = useState(inputDato(new Date()))
+  // Valgt periode huskes mellom hver gang du åpner appen
+  const lagret = useMemo(() => { try { return JSON.parse(localStorage.getItem('bedrift-periode') ?? '{}') } catch { return {} } }, [])
+  const [termin, setTermin] = useState<TerminId>(lagret.termin ?? 'alle')
+  const [aar, setAar] = useState<number>(lagret.aar ?? new Date().getFullYear())
+  const [egenStart, setEgenStart] = useState<string>(lagret.egenStart ?? inputDato(new Date(new Date().getFullYear(), new Date().getMonth() - 1, new Date().getDate())))
+  const [egenSlutt, setEgenSlutt] = useState<string>(lagret.egenSlutt ?? inputDato(new Date()))
+  useEffect(() => { try { localStorage.setItem('bedrift-periode', JSON.stringify({ termin, aar, egenStart, egenSlutt })) } catch { /* privat modus */ } }, [termin, aar, egenStart, egenSlutt])
+  const [redigererUtstyr, setRedigererUtstyr] = useState<BedriftUtgift | null>(null)
   const [sok, setSok] = useState('')
   const [ark, setArk] = useState<null | 'kjop' | 'salg' | 'utstyr' | 'kjorebok'>(null)
   const [redigerer, setRedigerer] = useState<Mobil | null>(null)
@@ -52,7 +56,7 @@ export function BedriftVisning() {
   const utgaendeMva = sum(data.mobiler.filter(m => m.salgspris != null && m.salgs_dato && d(m.salgs_dato) >= p.start && d(m.salgs_dato) <= p.slutt),
     m => Math.max(0, (m.salgspris ?? 0) - m.kjopspris) * 0.2)
   // Inngående MVA: utstyr er kjøpt med 25 % MVA, så MVA-delen er 20 % av prisen (25/125)
-  const inngaendeMva = sum(data.bedrift_utgifter.filter(u => d(u.dato) >= p.start && d(u.dato) <= p.slutt), u => u.pris * 0.2)
+  const inngaendeMva = sum(data.bedrift_utgifter.filter(u => u.med_mva !== false && d(u.dato) >= p.start && d(u.dato) <= p.slutt), u => u.pris * 0.2)
   const mva = utgaendeMva - inngaendeMva
 
   const eksporter = () => delFil(`MVA_Termin_Eksport_${inputDato(new Date())}.csv`,
@@ -148,9 +152,9 @@ export function BedriftVisning() {
           <Seksjon tittel={s ? 'Søkeresultat (utstyr)' : 'Utstyr og deler'}>
             {filtrertUtstyr.map(u => (
               <SveipRad key={u.id} onSlett={() => data.slett('bedrift_utgifter', u.id)}>
-                <div className="listerad">
+                <div className="listerad trykk" role="button" onClick={() => setRedigererUtstyr(u)}>
                   {u.bilde && <Miniatyr bilde={u.bilde} />}
-                  <div className="vokse kolonne" style={{ gap: 2 }}><span>{u.navn}</span><span className="liten">{datoKort(d(u.dato))}</span></div>
+                  <div className="vokse kolonne" style={{ gap: 2 }}><span>{u.navn}</span><span className="liten">{datoKort(d(u.dato))}{u.med_mva === false ? ' · uten MVA' : ''}</span></div>
                   <span className="fet rod tall">-{kr(u.pris)} kr</span>
                 </div>
               </SveipRad>
@@ -166,6 +170,7 @@ export function BedriftVisning() {
       {ark === 'utstyr' && <NyttUtstyr onLukk={() => setArk(null)} />}
       {ark === 'kjorebok' && <Kjorebok onLukk={() => setArk(null)} />}
       {redigerer && <RedigerMobil mobil={redigerer} onLukk={() => setRedigerer(null)} />}
+      {redigererUtstyr && <NyttUtstyr utstyr={redigererUtstyr} onLukk={() => setRedigererUtstyr(null)} />}
     </>
   )
 }
@@ -342,25 +347,32 @@ function RedigerMobil({ mobil, onLukk }: { mobil: Mobil; onLukk: () => void }) {
   )
 }
 
-function NyttUtstyr({ onLukk }: { onLukk: () => void }) {
+function NyttUtstyr({ onLukk, utstyr }: { onLukk: () => void; utstyr?: BedriftUtgift }) {
   const data = useData()
-  const [bilde, setBilde] = useState<string | null>(null)
-  const [navn, setNavn] = useState('')
-  const [pris, setPris] = useState('')
-  const [dato, setDato] = useState(inputDato(new Date()))
+  const [bilde, setBilde] = useState<string | null>(utstyr?.bilde ?? null)
+  const [navn, setNavn] = useState(utstyr?.navn ?? '')
+  const [pris, setPris] = useState(utstyr ? String(utstyr.pris) : '')
+  const [dato, setDato] = useState(inputDato(utstyr ? d(utstyr.dato) : new Date()))
+  const [medMva, setMedMva] = useState(utstyr?.med_mva ?? true)
   const tall = lesTall(pris)
   return (
-    <Ark tittel="Utstyr" onLukk={onLukk} kanLagre={!!navn && tall != null}
+    <Ark tittel={utstyr ? 'Endre utstyr' : 'Utstyr'} onLukk={onLukk} kanLagre={!!navn && tall != null}
       onLagre={async () => {
-        const r = await data.leggTil('bedrift_utgifter', { navn, pris: tall!, bilde, dato: (dato === inputDato(new Date()) ? new Date() : fraInputDato(dato)).toISOString() })
-        if (r) onLukk()
+        const nyDato = utstyr && dato === inputDato(d(utstyr.dato)) ? utstyr.dato : (dato === inputDato(new Date()) ? new Date() : fraInputDato(dato)).toISOString()
+        const rad = { navn, pris: tall!, bilde, dato: nyDato, med_mva: medMva }
+        if (utstyr) { await data.oppdater('bedrift_utgifter', utstyr.id, rad); onLukk() }
+        else if (await data.leggTil('bedrift_utgifter', rad)) onLukk()
       }}>
       <Skjema tittel="Bilde av kvittering (valgfritt)"><BildeVelger bilde={bilde} onEndre={setBilde} tekst="Legg ved kvittering" /></Skjema>
-      <Skjema tittel="Utstyr" fotnote="Utstyr føres kun i bedriften, ikke som utgift i budsjettet.">
+      <Skjema tittel="Utstyr" fotnote={medMva
+        ? `MVA du får trekke fra: ${kr(Math.round((tall ?? 0) * 0.2))} kr (20 % av prisen). Utstyr føres kun i bedriften, ikke i budsjettet.`
+        : 'Ingen MVA å trekke fra – f.eks. kjøpt fra privatperson eller fra utlandet.'}>
         <Tekstfelt verdi={navn} onEndre={setNavn} plassholder="Hva kjøpte du?" />
         <Tekstfelt verdi={pris} onEndre={setPris} plassholder="Pris" tall />
         <Tekstfelt etikett="Dato" type="date" verdi={dato} onEndre={setDato} />
+        <Bryter etikett="Kjøpt med MVA" paa={medMva} onEndre={setMedMva} />
       </Skjema>
+      {utstyr && <button className="knapp fare" onClick={async () => { if (bekreft(`Slette «${utstyr.navn}»?`)) { await data.slett('bedrift_utgifter', utstyr.id); onLukk() } }}>Slett utstyr</button>}
     </Ark>
   )
 }

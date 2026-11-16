@@ -8,6 +8,7 @@ import { HistorikkVisning } from './views/Historikk'
 import { BedriftVisning } from './views/Bedrift'
 import { Innstillinger } from './views/Innstillinger'
 import { Segment } from './ui'
+import { HurtigKnapp } from './views/Hurtig'
 
 export function App() {
   const [okt, setOkt] = useState<Session | null | undefined>(undefined)
@@ -38,6 +39,7 @@ function Hoved({ epost }: { epost: string }) {
       {fane === 'budsjett' && <BudsjettVisning onInnstillinger={() => setInnstillinger(true)} />}
       {fane === 'historikk' && <HistorikkVisning />}
       {fane === 'bedrift' && <BedriftVisning />}
+      {fane !== 'bedrift' && <HurtigKnapp />}
       <nav className="faner">
         <button className={'fane' + (fane === 'budsjett' ? ' aktiv' : '')} onClick={() => setFane('budsjett')}><PieChart size={24} />Budsjett</button>
         <button className={'fane' + (fane === 'historikk' ? ' aktiv' : '')} onClick={() => setFane('historikk')}><Clock size={24} />Historikk</button>
