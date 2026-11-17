@@ -55,6 +55,7 @@ create table if not exists mobiler (
   salgs_status text,
   kjops_status text,
   teleoutlet_ordre text,
+  sendt_dato timestamptz,
   bilde text,
   unique (user_id, flipp_id)
 );

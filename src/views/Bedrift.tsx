@@ -3,7 +3,7 @@ import { Truck, Car, CheckCircle2, DollarSign, FileText, Package, Send, Share, S
 import { useData } from '../data'
 import {
   bedriftResultat, d, erUnderveis, forsteBedriftDato, gjeldendeTermin, kapital, kmDenneMaaned, KM_GRENSE_MND, KM_SATS,
-  nesteStatus, sum, terminPeriode, TERMINER, type TerminId,
+  nesteStatus, sum, dagerSiden, dagerTekst, terminPeriode, TERMINER, type TerminId,
 } from '../regnskap'
 import { bruktprotokoll } from '../eksport'
 import { datoKort, fraInputDato, inputDato, kr, lesTall } from '../format'
@@ -126,6 +126,7 @@ export function BedriftVisning() {
                     <span className="rad" style={{ gap: 6 }}><span className="gra fet" style={{ fontSize: 14 }}>#{1000 + m.flipp_id}</span><span style={{ fontWeight: 500 }}>{m.navn}</span></span>
                     {m.imei && <span className="liten">IMEI: {m.imei}</span>}
                     {m.selger_navn && <span className="liten">Fra: {m.selger_navn}</span>}
+                    <span className="liten" style={{ color: dagerSiden(m.kjops_dato) >= 14 ? 'var(--oransje)' : undefined }}>På lager: {dagerTekst(dagerSiden(m.kjops_dato))}</span>
                     {m.kjops_status && <div style={{ marginTop: 4 }}><StatusMerke status="Sendes til deg" onTrykk={() => data.oppdater('mobiler', m.id, { kjops_status: null })} /></div>}
                   </div>
                   <span className="fet rod tall" style={{ whiteSpace: 'nowrap' }}>-{kr(m.kjopspris)} kr</span>
@@ -142,7 +143,9 @@ export function BedriftVisning() {
                 <SolgtRad mobil={m} onTrykk={() => setRedigerer(m)} onKvittering={() => kvittering(m)}
                   onStatus={() => data.oppdater('mobiler', m.id, m.kjops_status
                     ? { kjops_status: null, salgs_status: m.salgs_status ?? 'Må sendes' }   // Sendes til deg → Må sendes
-                    : { salgs_status: nesteStatus(m.salgs_status) })} />
+                    : nesteStatus(m.salgs_status) === 'Sendt'
+                      ? { salgs_status: 'Sendt', sendt_dato: new Date().toISOString() }   // husk når den ble sendt
+                      : { salgs_status: nesteStatus(m.salgs_status) })} />
               </SveipRad>
             ))}
           </Seksjon>
@@ -183,12 +186,12 @@ function Miniatyr({ bilde }: { bilde: string | null }) {
   return bilde ? <img className="miniatyr" src={bilde} alt="" /> : <div className="miniatyr"><Smartphone size={20} /></div>
 }
 
-export function StatusMerke({ status, onTrykk }: { status: Merkestatus; onTrykk?: () => void }) {
+export function StatusMerke({ status, onTrykk, ekstra }: { status: Merkestatus; onTrykk?: () => void; ekstra?: string }) {
   const { farge, Ikon } = STATUS[status]
   return (
     <span role={onTrykk ? 'button' : undefined} className="merke" style={{ color: farge, borderColor: farge + '80', background: farge + '26' }}
       onClick={onTrykk ? e => { e.stopPropagation(); onTrykk() } : undefined}>
-      <Ikon size={11} strokeWidth={3} />{status}
+      <Ikon size={11} strokeWidth={3} />{status}{ekstra && <span style={{ fontWeight: 600, opacity: 0.85 }}> · {ekstra}</span>}
     </span>
   )
 }
@@ -211,7 +214,8 @@ function SolgtRad({ mobil: m, onTrykk, onKvittering, onStatus }: { mobil: Mobil;
           <span style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>Solgt: {kr(m.salgspris ?? 0)}</span>
         </div>
         {m.teleoutlet_ordre && <span className="liten">Teleoutlet ordrenr.: <b style={{ color: 'var(--tekst)' }}>{m.teleoutlet_ordre}</b></span>}
-        {(m.kjops_status ?? m.salgs_status) && <div><StatusMerke status={(m.kjops_status ?? m.salgs_status)!} onTrykk={onStatus} /></div>}
+        {(m.kjops_status ?? m.salgs_status) && <div><StatusMerke status={(m.kjops_status ?? m.salgs_status)!} onTrykk={onStatus}
+          ekstra={!m.kjops_status && m.salgs_status === 'Sendt' && m.sendt_dato ? (dagerSiden(m.sendt_dato) === 0 ? 'i dag' : `${dagerTekst(dagerSiden(m.sendt_dato))} siden`) : undefined} /></div>}
       </div>
     </div>
   )
@@ -318,7 +322,7 @@ function RedigerMobil({ mobil, onLukk }: { mobil: Mobil; onLukk: () => void }) {
     }
     if (salg != null) {
       Object.assign(endring, {
-        salgspris: salg, profitt: salg - kjop!, kjoper_navn: kjoper || null, salgs_status: status || null, teleoutlet_ordre: teleoutlet.trim() || null,
+        salgspris: salg, profitt: salg - kjop!, kjoper_navn: kjoper || null, salgs_status: status || null, sendt_dato: status === 'Sendt' && mobil.salgs_status !== 'Sendt' ? new Date().toISOString() : mobil.sendt_dato, teleoutlet_ordre: teleoutlet.trim() || null,
         salgs_dato: mobil.salgs_dato && salgsDato === inputDato(d(mobil.salgs_dato)) ? mobil.salgs_dato
           : salgsDato === inputDato(new Date()) ? new Date().toISOString() : fraInputDato(salgsDato).toISOString(),
       })

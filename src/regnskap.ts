@@ -129,3 +129,11 @@ export const KM_GRENSE_MND = 500
 export function kmDenneMaaned(turer: Kjoretur[], naa = new Date()) {
   return sum(turer.filter(t => sammeMaaned(d(t.dato), naa)), t => t.km)
 }
+
+/** Hele dager fra en dato til i dag (0 = i dag) */
+export function dagerSiden(dato: string | Date) {
+  const fra = new Date(dato); const naa = new Date()
+  const a = Date.UTC(fra.getFullYear(), fra.getMonth(), fra.getDate()), b = Date.UTC(naa.getFullYear(), naa.getMonth(), naa.getDate())
+  return Math.max(0, Math.round((b - a) / 864e5))
+}
+export const dagerTekst = (n: number) => n === 0 ? 'i dag' : n === 1 ? '1 dag' : `${n} dager`
